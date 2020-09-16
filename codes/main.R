@@ -37,7 +37,68 @@ to_harmonize <-ab_metadata %>%
   mutate(var_label= case_when(grepl("^unique_identifier", var_label) ~ "unique_id",
                               TRUE ~ var_label))%>%
   mutate ( var_name = val_label_normalize(var_label)) # again we normalize the var_label( check its inner code)
+# further filtering in var_name variables 
+to_harmonize <- to_harmonize %>%
+  filter (
+    grepl ( "president|parliament|religious|traditional|unique_id|weight|country|date_of_int", var_name)
+  )
+unique(to_harmonize$var_name) # we have duplicated varialbes names
+to_harmonize %>%
+  select ( all_of(c("id", "var_name", "var_label")))
+# we need harmonization , we use merge_waves() function harmonizes the variable names, the variable labels and survey identifiers and returns a list of surveys (of class survey())
+#The parameter var_harmonization must be a list or a data frame that contains at least the original file name (filename),
 
+merged_ab <- merge_waves(waves=ab_waves, var_harmonization = to_harmonize) # original and harmoized data to 
+# we transform country to character
+merged_ab <- lapply ( merged_ab,
+                      FUN = function(x) x  %>%
+                        mutate( country = as_character(country)))
 
+documenteded_merged_ab <- document_waves(merged_ab)
+#Harmonization
+R5 <- pull_survey ( merged_ab, id = "Afrobarometer_R5")
+attributes(R5$trust_president[1:20])
+#The document_survey_item() function shows the metadata of a single variable.
 
+document_survey_item(R5$trust_president)
+#mark the missing values with collect_na_labels
+collect_na_labels( to_harmonize )
+
+collect_val_labels (to_harmonize %>%
+                      filter ( grepl( "trust", var_name) ))
+
+harmonize_ab_trust <- function(x) {
+  label_list <- list(
+    from = c("^not", "^just", "^somewhat",
+             "^a", "^don", "^ref", "^miss", "^not", "^inap"),
+    to = c("not_at_all", "little", "somewhat",
+           "a_lot", "do_not_know", "declined", "inap", "inap",
+           "inap"),
+    numeric_values = c(0,1,2,3, 99997, 99998, 99999,99999, 99999)
+  )
+  
+  harmonize_values(
+    x,
+    harmonize_labels = label_list,
+    na_values = c("do_not_know"=99997,
+                  "declined"=99998,
+                  "inap"=99999)
+  )
+}
+# The harmonize_waves() function binds all variables that are present in all surveys.
+harmonized_ab_waves <- harmonize_waves (
+  waves = merged_ab,
+  .f = harmonize_ab_trust )
+# structure of the harmonized_ab_waves
+h_ab_structure <- attributes(harmonized_ab_waves)
+h_ab_structure
+#creat new variable with only the year of the interview: chara then integer 
+
+harmonized_ab_waves <- harmonized_ab_waves %>%
+  mutate( year = as.integer(substr(as.character(date_of_interview),1,4)))
+
+harmonized_ab_waves <- harmonized_ab_waves %>%
+  filter ( country %in% c("Niger", "Nigeria", "Algeria",
+                          "South Africa", "Madagascar"))
+#Analyzing the harmonized data
 
