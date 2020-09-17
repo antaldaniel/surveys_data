@@ -101,4 +101,21 @@ harmonized_ab_waves <- harmonized_ab_waves %>%
   filter ( country %in% c("Niger", "Nigeria", "Algeria",
                           "South Africa", "Madagascar"))
 #Analyzing the harmonized data
+harmonized_ab_waves %>%
+  mutate_at ( vars(starts_with("trust")),
+              ~as_numeric(.)*within_country_weighting_factor) %>%
+  select ( -all_of("within_country_weighting_factor") ) %>%
+  group_by ( country, year ) %>%
+  summarize_if ( is.numeric, mean, na.rm=TRUE )
+
+
+harmonized_ab_waves %>%
+  select ( -all_of("within_country_weighting_factor") ) %>%
+  mutate_if ( is.labelled_spss_survey, as_factor) %>%
+  pivot_longer ( starts_with("trust"),
+                 names_to  = "institution",
+                 values_to = "category")%>%
+  mutate ( institution = gsub("^trust_", "", institution) ) %>%
+  group_by ( country, year, institution, category ) %>%
+  summarize ( n = n() )
 
