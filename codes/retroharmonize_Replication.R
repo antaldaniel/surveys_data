@@ -29,22 +29,23 @@ ab_metadata <- do.call(rbind, ab_metadata) #reuslt List of 12 rows, 12972 variab
 #1. selection of variables of interst("rowid", "DATEINTR", "COUNTRY", "REGION", "withinwt")
 #2. also variables with word Trust
 library(dplyr)
-to_harmonize <-ab_metadata %>%
+to_harmonize <- ab_metadata %>%
   filter ( var_name_orig %in%
              c("rowid", "DATEINTR", "COUNTRY", "REGION", "withinwt") |
-             grepl("trust ", label_orig )) %>%
-  mutate(var_label=var_label_normalize(label_orig)) %>% # normalizing label_orig values
-  mutate(var_label= case_when(grepl("^unique_identifier", var_label) ~ "unique_id",
-                              TRUE ~ var_label))%>%
-  mutate ( var_name = val_label_normalize(var_label)) # again we normalize the var_label( check its inner code)
+             grepl("trust ", label_orig ) ) %>%
+  mutate ( var_label = var_label_normalize(label_orig)) %>%
+  mutate ( var_label = case_when (
+    grepl("^unique identifier", var_label) ~ "unique_id",
+    TRUE ~ var_label)) %>%
+  mutate ( var_name = val_label_normalize(var_label))# again we normalize the var_label( check its inner code)
 # further filtering in var_name variables 
 to_harmonize <- to_harmonize %>%
   filter (
     grepl ( "president|parliament|religious|traditional|unique_id|weight|country|date_of_int", var_name)
   )
 unique(to_harmonize$var_name) # we have duplicated varialbes names
-to_harmonize %>%
-  select ( all_of(c("id", "var_name", "var_label")))
+head(to_harmonize %>%
+       select ( all_of(c("id", "var_name", "var_label"))), 10)
 # we need harmonization , we use merge_waves() function harmonizes the variable names, the variable labels and survey identifiers and returns a list of surveys (of class survey())
 #The parameter var_harmonization must be a list or a data frame that contains at least the original file name (filename),
 
@@ -100,17 +101,17 @@ harmonized_ab_waves <- harmonized_ab_waves %>%
 harmonized_ab_waves <- harmonized_ab_waves %>%
   filter ( country %in% c("Niger", "Nigeria", "Algeria",
                           "South Africa", "Madagascar"))
-#Analyzing the harmonized data
+
 harmonized_ab_waves %>%
-  mutate_at ( vars(starts_with("trust")),
-              ~as_numeric(.)*within_country_weight) %>%
-  select ( -all_of("within_country_weight") ) %>%
+  mutate_at( vars(starts_with("trust")),
+              ~as_numeric(.)*within_country_weighting_factor) %>%
+  select ( -all_of("within_country_weighting_factor") ) %>%
   group_by ( country, year ) %>%
   summarize_if ( is.numeric, mean, na.rm=TRUE )
 
-
+library(tidyr)  ## tidyr::pivot_longer()
 harmonized_ab_waves %>%
-  select ( -all_of("within_country_weight") ) %>%
+  select ( -all_of("within_country_weighting_factor")) %>%
   mutate_if ( is.labelled_spss_survey, as_factor) %>%
   pivot_longer ( starts_with("trust"),
                  names_to  = "institution",
@@ -119,3 +120,26 @@ harmonized_ab_waves %>%
   group_by ( country, year, institution, category ) %>%
   summarize ( n = n())
 
+#...
+str(x)
+x <-harmonized_ab_waves %>%
+  select ( -all_of("within_country_weighting_factor")) %>%
+  mutate_if ( is.labelled_spss_survey, as_factor) %>%
+  pivot_longer ( starts_with("trust"),
+                 names_to  = "institution",
+                 values_to = "category") %>%
+  mutate ( institution = gsub("^trust_", "", institution) ) %>%
+  group_by ( country, year, institution, category ) %>%
+  summarize ( n = n())
+
+
+# ploting the trust variables for selected countries across survey rounds
+library(ggplot2)
+x %>% ggplot(aes(year, n, fill = category))+
+  geom_col(stat="identity", position="dodge",width=0.4)+
+  facet_grid(country ~ institution)+
+  theme(text = element_text(size=7))+
+  theme(strip.text = element_text(face="bold", size=6,lineheight=3.0),
+        strip.background = element_rect(fill="lightblue", colour="gray",
+                                        size=1))+
+  scale_fill_brewer(palette="Spectral")

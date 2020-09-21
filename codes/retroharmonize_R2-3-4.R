@@ -1,4 +1,4 @@
-# testing retroharmonize package on other survey data
+# testing retroharmonize. package on other survey data
 library(retroharmonize)
 library(dplyr)
 library(tidyr)
@@ -15,7 +15,7 @@ colnames(ab_metadata)
 
 to_harmonize <-ab_metadata %>%
   filter ( var_name_orig %in%
-             c("rowid","DATEINTR","dateintr", "COUNTRY","country", "REGION","region", "withinwt","Withinwt")|
+             c("rowid", "DATEINTR", "COUNTRY", "REGION", "withinwt")|
              grepl("trust ", label_orig ))%>%
   mutate(var_label=var_label_normalize(label_orig)) %>% # normalizing label_orig values
   mutate(var_label= case_when(grepl("^unique_identifier", var_label) ~ "unique_id",
@@ -26,7 +26,7 @@ to_harmonize <- to_harmonize %>%
   filter (
     grepl ( "president|parliament|religious|traditional|unique_id|weight|country|date_of_int", var_name)
   )
-unique(to_harmonize$var_name) # we have duplicated varialbes names
+unique(to_harmonize$var_name) 
 to_harmonize %>%
   select ( all_of(c("id", "var_name", "var_label")))
 
@@ -99,3 +99,11 @@ harmonized_ab_waves %>%
   group_by ( country, year, institution, category ) %>%
   summarize ( n = n())
 
+x %>% ggplot(aes(year, n, fill = category))+
+  geom_col(stat="identity", position="dodge",width=0.4)+
+  facet_grid(country ~ institution)+
+  theme(text = element_text(size=7))+
+  theme(strip.text = element_text(face="bold", size=6,lineheight=3.0),
+        strip.background = element_rect(fill="lightblue", colour="gray",
+                                        size=1))+
+  scale_fill_brewer(palette="Spectral")
